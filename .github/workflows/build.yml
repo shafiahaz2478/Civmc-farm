@@ -66,14 +66,10 @@ jobs:
           echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
           echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
           apk update
-          # Removed termux-elf-cleaner, added zip
-          apk add --no-cache crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev zip
+          apk add crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev zip
         run: |
           shards install
-          # The magic flags to fix the "TLS segment underaligned" error
-          shards build --extra-cflags="-Wl,-z,common-page-size=64 -Wl,-z,max-page-size=64"
-          
-          # Package as a ZIP
+          LDFLAGS="-Wl,-z,max-page-size=65536 -Wl,-z,common-page-size=65536" shards build
           zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
     - uses: actions/upload-artifact@v4
       with:
