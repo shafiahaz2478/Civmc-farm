@@ -63,10 +63,12 @@ jobs:
         distro: alpine_latest
         githubToken: ${{ github.token }}
         install: |
-          # Add the Edge community repo to get the latest Crystal version
+          # Add BOTH Edge Main and Community repos
+          echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
           echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
           apk update
-          apk add crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev
+          # Use --no-cache to ensure we get the latest metadata
+          apk add --no-cache crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev
         run: |
           shards install
           shards build --release
