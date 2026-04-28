@@ -74,6 +74,7 @@ jobs:
 
     - name: Build Static Binary
       run: |
+        mkdir -p bin
         shards install
         # The --static flag is the key here
         crystal build src/carrot-farm.cr --release --static --no-debug -o bin/carrot-farm
@@ -83,7 +84,7 @@ jobs:
       with:
         name: linux-arm64-bin
         path: rosegold-linux-arm64.zip
-        
+
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
