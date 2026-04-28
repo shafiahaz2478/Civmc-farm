@@ -75,7 +75,6 @@ jobs:
             pcre2-dev \
             gc-dev \
             libevent-dev libevent-static \
-            libgc-static \
             musl-dev \
             zip
         run: |
