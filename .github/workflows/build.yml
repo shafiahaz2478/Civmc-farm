@@ -1,4 +1,4 @@
-name: Build
+name: Build and Release
 
 on:
   push:
@@ -6,69 +6,88 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: Install Crystal
       uses: crystal-lang/install-crystal@v1
-
-    - name: Setup Crystal env (for next steps)
+    - name: Setup Crystal env
       run: crystal env | Select-String 'CRYSTAL_LIBRARY_PATH' >> $env:GITHUB_ENV
-
     - name: Set up Visual Studio shell
       uses: egor-tensin/vs-shell@v2
       with:
         arch: x64
-
     - name: Install dependencies
       run: shards install
-
     - name: Run release build
-      run: shards build --release --debug
-
-    - name: Get version
-      id: version
+      run: shards build --release
+    - name: Package Windows
       run: |
-        $version = crystal eval "require `"./src/rosegold-example`"; puts RosegoldExample::VERSION"
-        echo "version=$version" >> $env:GITHUB_OUTPUT
-
+        mkdir dist
+        copy bin\* dist\
+        copy README.md dist\
+        copy LICENSE dist\
+        Compress-Archive -Path dist\* -DestinationPath rosegold-windows-x64.zip
     - uses: actions/upload-artifact@v4
       with:
-        name: rosegold-example-windows-${{ steps.version.outputs.version }}
-        path: |
-          bin
-          README.md
-          LICENSE
+        name: windows-bin
+        path: rosegold-windows-x64.zip
 
-  build-linux:
+  build-linux-x64:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
-    - name: Install Crystal
-      uses: crystal-lang/install-crystal@v1
-      with:
-        crystal: latest
-
-    - name: Install dependencies
-      run: shards install
-
-    - name: Run release build
-      run: shards build --release --debug
-
-    - name: Get version
-      id: version
-      run: |
-        version=$(crystal eval "require \"./src/rosegold-example\"; puts RosegoldExample::VERSION")
-        echo "version=$version" >> $GITHUB_OUTPUT
-
+    - uses: crystal-lang/install-crystal@v1
+    - run: shards install
+    - run: shards build --release
+    - name: Package Linux x64
+      run: tar -czvf rosegold-linux-x64.tar.gz bin/ README.md LICENSE
     - uses: actions/upload-artifact@v4
       with:
-        name: rosegold-example-linux-${{ steps.version.outputs.version }}
-        path: |
-          bin
-          README.md
-          LICENSE
+        name: linux-x64-bin
+        path: rosegold-linux-x64.tar.gz
+
+  build-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build ARM64 via Docker
+      uses: uraimo/run-on-arch-action@v2
+      with:
+        arch: aarch64
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update
+          apt-get install -y crystal libssl-dev libxml2-dev libyaml-dev libgmp-dev git
+        run: |
+          shards install
+          shards build --release
+          tar -czvf rosegold-linux-arm64.tar.gz bin/ README.md LICENSE
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-bin
+        path: rosegold-linux-arm64.tar.gz
+
+  create-release:
+    needs: [build-windows, build-linux-x64, build-linux-arm64]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+    - uses: actions/download-artifact@v4
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: Latest Build
+        draft: false
+        prerelease: false
+        files: |
+          windows-bin/rosegold-windows-x64.zip
+          linux-x64-bin/rosegold-linux-x64.tar.gz
+          linux-arm64-bin/rosegold-linux-arm64.tar.gz

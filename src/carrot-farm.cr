@@ -264,13 +264,32 @@ def farm!(bot : Rosegold::Bot) : Int32
 end
 
 # =============================================================================
-# STOP COMMAND — type "!stop" in-game chat to abort
+# STOP COMMAND
+#
+# Only accepts "!stop" from your NL group chat. On CivMC, NL group messages
+# appear as: [GroupName] PlayerName: message
+# So we check that the message contains both "[Ila'Kyavul]" and "!stop".
 # =============================================================================
+
+# NL group whose members are allowed to stop the bot
+STOP_GROUP = "[#{DISCORD_GROUP}]"
+
+# Flag — when true, the reconnect loop exits instead of retrying
+class BotState
+  class_property? stopped : Bool = false
+end
 
 def register_stop_listener(bot : Rosegold::Bot)
   bot.on Rosegold::Clientbound::SystemChatMessage do |msg|
-    if msg.message.to_s.includes?("!stop")
-      log "!stop received — disconnecting"
+    text = msg.message.to_s
+    if text.includes?(STOP_GROUP) && text.includes?("!stop")
+      log "!stop from #{STOP_GROUP} — shutting down"
+      BotState.stopped = true
+      begin
+        bot.chat "/logout"
+        sleep 2.seconds
+      rescue
+      end
       bot.disconnect("!stop command received")
     end
   end
@@ -291,6 +310,8 @@ Rosegold::Client.protocol_version = 774_u32
 retry_delay = INITIAL_RETRY_DELAY
 
 loop do
+  break if BotState.stopped?
+
   begin
     client = Rosegold::Client.new SERVER_HOST
     spectate_server.attach_client client
@@ -314,6 +335,8 @@ loop do
 
     elapsed = farm!(bot)
 
+    break if BotState.stopped? # !stop was received during farming
+
     if bot.connected?
       bot.chat "/g #{DISCORD_GROUP} #{FARM_NAME} done in #{elapsed // 60}m #{elapsed % 60}s. Ready in #{REGROW_HOURS}h."
       sleep 2.seconds
@@ -328,8 +351,11 @@ loop do
     retry_delay = {retry_delay * 2, MAX_RETRY_DELAY}.min
 
   rescue e
+    break if BotState.stopped?
     log "Error: #{e.message}, retrying in #{retry_delay.total_seconds.to_i}s..."
     sleep retry_delay
     retry_delay = {retry_delay * 2, MAX_RETRY_DELAY}.min
   end
 end
+
+log BotState.stopped? ? "Bot stopped by !stop command." : "Bot finished."
