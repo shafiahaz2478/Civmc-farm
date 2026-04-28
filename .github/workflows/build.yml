@@ -56,14 +56,28 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@v4
-    - name: Install Crystal
+
+    - name: Install dependencies
       run: |
-        curl -fsSL https://crystal-lang.org/install.sh | sudo bash
+        sudo apt-get update
+        sudo apt-get install -y build-essential git zip
+
+    - name: Install Crystal (aarch64-bundled)
+      run: |
+        wget -q https://github.com/crystal-lang/crystal/releases/download/1.20.0/crystal-1.20.0-1-linux-aarch64-bundled.tar.gz
+        tar xf crystal-1.20.0-1-linux-aarch64-bundled.tar.gz
+        sudo cp -r crystal-1.20.0-1/bin/* /usr/local/bin/
+        sudo cp -r crystal-1.20.0-1/lib/* /usr/local/lib/
+        sudo cp -r crystal-1.20.0-1/share/* /usr/local/share/
+        sudo ldconfig
+        crystal --version
+
     - name: Build
       run: |
         shards install
         LDFLAGS="-Wl,-z,max-page-size=65536 -Wl,-z,common-page-size=65536" shards build
         zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
+
     - uses: actions/upload-artifact@v4
       with:
         name: linux-arm64-bin
