@@ -6,6 +6,8 @@ authors:
   - Alex Piechowski <alex@piechowski.io>
 
 targets:
+  carrot-farm:
+    main: src/carrot-farm.cr
   attack:
     main: src/attack.cr
   afk:
