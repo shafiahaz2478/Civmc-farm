@@ -10,74 +10,73 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install Crystal
-      uses: crystal-lang/install-crystal@v1
-    - name: Setup Crystal env
-      run: crystal env | Select-String 'CRYSTAL_LIBRARY_PATH' >> $env:GITHUB_ENV
-    - name: Set up Visual Studio shell
-      uses: egor-tensin/vs-shell@v2
-      with:
-        arch: x64
-    - name: Install dependencies
-      run: shards install
-    - name: Run release build
-      run: shards build
-    - name: Package Windows
-      run: |
-        mkdir dist
-        copy bin\* dist\
-        copy README.md dist\
-        copy LICENSE dist\
-        Compress-Archive -Path dist\* -DestinationPath rosegold-windows-x64.zip
-    - uses: actions/upload-artifact@v4
-      with:
-        name: windows-bin
-        path: rosegold-windows-x64.zip
+  # build-windows:
+  #   runs-on: windows-latest
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Install Crystal
+  #     uses: crystal-lang/install-crystal@v1
+  #   - name: Setup Crystal env
+  #     run: crystal env | Select-String 'CRYSTAL_LIBRARY_PATH' >> $env:GITHUB_ENV
+  #   - name: Set up Visual Studio shell
+  #     uses: egor-tensin/vs-shell@v2
+  #     with:
+  #       arch: x64
+  #   - name: Install dependencies
+  #     run: shards install
+  #   - name: Run release build
+  #     run: shards build
+  #   - name: Package Windows
+  #     run: |
+  #       mkdir dist
+  #       copy bin\* dist\
+  #       copy README.md dist\
+  #       copy LICENSE dist\
+  #       Compress-Archive -Path dist\* -DestinationPath rosegold-windows-x64.zip
+  #   - uses: actions/upload-artifact@v4
+  #     with:
+  #       name: windows-bin
+  #       path: rosegold-windows-x64.zip
 
-  build-linux-x64:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: crystal-lang/install-crystal@v1
-    - run: shards install
-    - run: shards build
-    - name: Package Linux x64
-      run: tar -czvf rosegold-linux-x64.tar.gz bin/ README.md LICENSE
-    - uses: actions/upload-artifact@v4
-      with:
-        name: linux-x64-bin
-        path: rosegold-linux-x64.tar.gz
+  # build-linux-x64:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - uses: crystal-lang/install-crystal@v1
+  #   - run: shards install
+  #   - run: shards build
+  #   - name: Package Linux x64
+  #     run: tar -czvf rosegold-linux-x64.tar.gz bin/ README.md LICENSE
+  #   - uses: actions/upload-artifact@v4
+  #     with:
+  #       name: linux-x64-bin
+  #       path: rosegold-linux-x64.tar.gz
 
   build-linux-arm64:
     runs-on: ubuntu-24.04-arm
+    container: alpine:latest  # Use Alpine for better static compatibility
     steps:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        # You MUST install static versions of required libraries
-        sudo apt-get install -y build-essential libevent-dev libpcre2-dev libgc-dev zlib1g-dev libyaml-dev libssl-dev
-
-    - name: Install Crystal (aarch64-bundled)
-      run: |
-        wget -q https://github.com/crystal-lang/crystal/releases/download/1.20.0/crystal-1.20.0-1-linux-aarch64-bundled.tar.gz
-        tar xf crystal-1.20.0-1-linux-aarch64-bundled.tar.gz
-        sudo cp -r crystal-1.20.0-1/bin/* /usr/local/bin/
-        sudo cp -r crystal-1.20.0-1/lib/* /usr/local/lib/
-        sudo cp -r crystal-1.20.0-1/share/* /usr/local/share/
-        sudo ldconfig
+        apk add --no-cache \
+          crystal shards build-base \
+          openssl-dev openssl-libs-static \
+          zlib-dev zlib-static \
+          gc-dev libevent-dev libevent-static \
+          pcre2-dev yaml-dev gmp-dev
 
     - name: Build Static Binary
       run: |
-        mkdir -p bin
         shards install
-        # The --static flag is the key here
+        mkdir -p bin
+        # Build with static flags
         crystal build src/carrot-farm.cr --release --static --no-debug -o bin/carrot-farm
+        
+    - name: Package
+      run: |
+        apk add zip
         zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
 
     - uses: actions/upload-artifact@v4
@@ -86,7 +85,7 @@ jobs:
         path: rosegold-linux-arm64.zip
 
   create-release:
-    needs: [build-windows, build-linux-x64, build-linux-arm64]
+    needs: [build-linux-arm64]
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
@@ -99,6 +98,5 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          windows-bin/rosegold-windows-x64.zip
-          linux-x64-bin/rosegold-linux-x64.tar.gz
+
           linux-arm64-bin/rosegold-linux-arm64.zip
