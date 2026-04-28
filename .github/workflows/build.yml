@@ -63,20 +63,27 @@ jobs:
         distro: alpine_latest
         githubToken: ${{ github.token }}
         install: |
-          # Add BOTH Edge Main and Community repos
+          # Add Edge repos for the latest Crystal and termux-elf-cleaner
           echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
           echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+          echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
           apk update
-          # Use --no-cache to ensure we get the latest metadata
-          apk add --no-cache crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev
+          # Added 'zip' and 'termux-elf-cleaner' to the install list
+          apk add --no-cache crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev zip termux-elf-cleaner
         run: |
           shards install
           shards build
-          tar -czvf rosegold-linux-arm64.tar.gz bin/ README.md LICENSE
+          
+          # 1. Fix the binary alignment for Android/Termux
+          termux-elf-cleaner bin/*
+          
+          # 2. Package as a ZIP instead of TAR
+          zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
+          
     - uses: actions/upload-artifact@v4
       with:
         name: linux-arm64-bin
-        path: rosegold-linux-arm64.tar.gz
+        path: rosegold-linux-arm64.zip
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
@@ -93,4 +100,4 @@ jobs:
         files: |
           windows-bin/rosegold-windows-x64.zip
           linux-x64-bin/rosegold-linux-x64.tar.gz
-          linux-arm64-bin/rosegold-linux-arm64.tar.gz
+          linux-arm64-bin/rosegold-linux-arm64.zip
