@@ -53,21 +53,22 @@ jobs:
         path: rosegold-linux-x64.tar.gz
 
   build-linux-arm64:
-  runs-on: ubuntu-24.04-arm  # GitHub's native ARM64 runner
-  steps:
-  - uses: actions/checkout@v4
-  - name: Install Crystal
-    run: |
-      curl -fsSL https://crystal-lang.org/install.sh | sudo bash
-  - name: Build
-    run: |
-      shards install
-      shards build
-      zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
-  - uses: actions/upload-artifact@v4
-    with:
-      name: linux-arm64-bin
-      path: rosegold-linux-arm64.zip
+    runs-on: ubuntu-24.04-arm  # GitHub's native ARM64 runner
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Crystal
+      run: |
+        curl -fsSL https://crystal-lang.org/install.sh | sudo bash
+    - name: Build
+      run: |
+        shards install
+        shards build
+        zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-bin
+        path: rosegold-linux-arm64.zip
+        
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
