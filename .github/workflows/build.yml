@@ -66,7 +66,18 @@ jobs:
           echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
           echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
           apk update
-          apk add crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev openssl-libs-static zlib-static yaml-static gmp-dev pcre2-dev libevent-static zip
+          apk add \
+            crystal shards git build-base \
+            openssl-dev openssl-libs-static \
+            zlib-dev zlib-static \
+            yaml-dev yaml-static \
+            gmp-dev \
+            pcre2-dev \
+            gc-dev \
+            libevent-dev libevent-static \
+            libgc-static \
+            musl-dev \
+            zip
         run: |
           shards install
           LDFLAGS="-Wl,-z,max-page-size=65536 -Wl,-z,common-page-size=65536" shards build --static
