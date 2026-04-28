@@ -25,7 +25,7 @@ jobs:
     - name: Install dependencies
       run: shards install
     - name: Run release build
-      run: shards build --release
+      run: shards build
     - name: Package Windows
       run: |
         mkdir dist
@@ -44,7 +44,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: crystal-lang/install-crystal@v1
     - run: shards install
-    - run: shards build --release
+    - run: shards build
     - name: Package Linux x64
       run: tar -czvf rosegold-linux-x64.tar.gz bin/ README.md LICENSE
     - uses: actions/upload-artifact@v4
@@ -60,7 +60,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git zip
+        # You MUST install static versions of required libraries
+        sudo apt-get install -y build-essential libevent-dev libpcre2-dev libgc-dev zlib1g-dev libyaml-dev libssl-dev
 
     - name: Install Crystal (aarch64-bundled)
       run: |
@@ -70,19 +71,19 @@ jobs:
         sudo cp -r crystal-1.20.0-1/lib/* /usr/local/lib/
         sudo cp -r crystal-1.20.0-1/share/* /usr/local/share/
         sudo ldconfig
-        crystal --version
 
-    - name: Build
+    - name: Build Static Binary
       run: |
         shards install
-        LDFLAGS="-Wl,-z,max-page-size=65536 -Wl,-z,common-page-size=65536" shards build
+        # The --static flag is the key here
+        crystal build src/carrot-farm.cr --release --static --no-debug -o bin/carrot-farm
         zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
 
     - uses: actions/upload-artifact@v4
       with:
         name: linux-arm64-bin
         path: rosegold-linux-arm64.zip
-
+        
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
