@@ -76,7 +76,30 @@ jobs:
             gc-dev \
             libevent-dev libevent-static \
             musl-dev \
-            zip
+            zip wget
+
+          # Build static libgmp from source
+          wget -q https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz
+          tar xf gmp-6.3.0.tar.xz && cd gmp-6.3.0
+          ./configure --enable-static --disable-shared --prefix=/usr
+          make -j$(nproc) && make install
+          cd .. && rm -rf gmp-6.3.0*
+
+          # Build static libpcre2 from source
+          wget -q https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.44/pcre2-10.44.tar.gz
+          tar xf pcre2-10.44.tar.gz && cd pcre2-10.44
+          ./configure --enable-static --disable-shared --prefix=/usr \
+            --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32
+          make -j$(nproc) && make install
+          cd .. && rm -rf pcre2-10.44*
+
+          # Build static libgc (Boehm GC) from source
+          wget -q https://github.com/ivmai/bdwgc/releases/download/v8.2.6/gc-8.2.6.tar.gz
+          tar xf gc-8.2.6.tar.gz && cd gc-8.2.6
+          ./configure --enable-static --disable-shared --prefix=/usr
+          make -j$(nproc) && make install
+          cd .. && rm -rf gc-8.2.6*
+
         run: |
           shards install
           LDFLAGS="-Wl,-z,max-page-size=65536 -Wl,-z,common-page-size=65536" shards build --static
