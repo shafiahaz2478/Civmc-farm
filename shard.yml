@@ -8,6 +8,8 @@ authors:
 targets:
   carrot-farm:
     main: src/carrot-farm.cr
+  melon-compact:
+    main: src/melon-compact.cr
 
 crystal: '>= 1.17.1'
 

@@ -71,7 +71,7 @@ jobs:
           apk add --no-cache crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev
         run: |
           shards install
-          shards build --release
+          shards build
           tar -czvf rosegold-linux-arm64.tar.gz bin/ README.md LICENSE
     - uses: actions/upload-artifact@v4
       with:
