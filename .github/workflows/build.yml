@@ -64,17 +64,17 @@ jobs:
         githubToken: ${{ github.token }}
         install: |
           apt-get update
-          # Install basic tools first
-          apt-get install -y gnupg2 curl ca-certificates git --no-install-recommends
+          apt-get install -y curl gnupg2 ca-certificates git --no-install-recommends
           
-          # Manually import the missing key that the log complained about
-          apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 09617FD37CC06B54
+          # Manually add the GPG key to the proper modern keyring location
+          curl -fsSL https://dist.crystal-lang.org/apt/setup.sh | gpg --dearmor -o /usr/share/keyrings/crystal-archive-keyring.gpg
           
-          # Now run the official setup
-          curl -sSL https://dist.crystal-lang.org/apt/setup.sh | bash
+          # Manually create the source list with the 'main' component specified
+          echo "deb [signed-by=/usr/share/keyrings/crystal-archive-keyring.gpg] https://dist.crystal-lang.org/apt crystal main" > /etc/apt/sources.list.d/crystal.list
           
-          # Install Crystal and build dependencies
-          apt-get install -y crystal libssl-dev libxml2-dev libyaml-dev libgmp-dev libpcre3-dev
+          apt-get update
+          # Explicitly install crystal and all required build-time libraries
+          apt-get install -y crystal libssl-dev libxml2-dev libyaml-dev libgmp-dev libpcre3-dev libevent-dev
         run: |
           shards install
           shards build --release
@@ -83,7 +83,7 @@ jobs:
       with:
         name: linux-arm64-bin
         path: rosegold-linux-arm64.tar.gz
-
+        
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
