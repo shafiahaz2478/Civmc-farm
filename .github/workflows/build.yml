@@ -53,61 +53,58 @@ jobs:
         path: rosegold-linux-x64.tar.gz
 
   build-linux-arm64:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build ARM64 via Alpine Docker
-      uses: uraimo/run-on-arch-action@v2
-      with:
-        arch: aarch64
-        distro: alpine_latest
-        githubToken: ${{ github.token }}
-        install: |
-          echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
-          echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-          apk update
-          apk add \
-            crystal shards git build-base \
+  runs-on: ubuntu-latest
+  steps:
+  - uses: actions/checkout@v4
+
+  - name: Set up Docker Buildx
+    uses: docker/setup-buildx-action@v3
+
+  - name: Build in Crystal Alpine container (native ARM64 buildx)
+    run: |
+      docker buildx build \
+        --platform linux/arm64 \
+        --output type=local,dest=./output \
+        --file - . <<'EOF'
+      FROM arm64v8/alpine:latest
+      RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories && \
+          echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
+          apk update && \
+          apk add --no-cache crystal shards git build-base \
             openssl-dev openssl-libs-static \
             zlib-dev zlib-static \
             yaml-dev yaml-static \
-            gmp-dev \
-            pcre2-dev \
-            gc-dev \
+            gmp-dev pcre2-dev gc-dev \
             libevent-dev libevent-static \
-            musl-dev \
-            zip wget
-
-          # Build static libgmp from source
-          wget -q https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz
-          tar xf gmp-6.3.0.tar.xz && cd gmp-6.3.0
-          ./configure --enable-static --disable-shared --prefix=/usr
-          make -j$(nproc) && make install
-          cd .. && rm -rf gmp-6.3.0*
-
-          # Build static libpcre2 from source
-          wget -q https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.44/pcre2-10.44.tar.gz
-          tar xf pcre2-10.44.tar.gz && cd pcre2-10.44
-          ./configure --enable-static --disable-shared --prefix=/usr \
-            --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32
-          make -j$(nproc) && make install
-          cd .. && rm -rf pcre2-10.44*
-
-          # Build static libgc (Boehm GC) from source
-          wget -q https://github.com/ivmai/bdwgc/releases/download/v8.2.6/gc-8.2.6.tar.gz
-          tar xf gc-8.2.6.tar.gz && cd gc-8.2.6
-          ./configure --enable-static --disable-shared --prefix=/usr
-          make -j$(nproc) && make install
-          cd .. && rm -rf gc-8.2.6*
-
-        run: |
-          shards install
-          LDFLAGS="-Wl,-z,max-page-size=65536 -Wl,-z,common-page-size=65536" shards build --static
+            musl-dev zip && \
+          # Compile missing static libs natively inside ARM64 container
+          apk add --no-cache automake autoconf libtool && \
+          wget -q https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz && \
+          tar xf gmp-6.3.0.tar.xz && cd gmp-6.3.0 && \
+          ./configure --enable-static --disable-shared --prefix=/usr && \
+          make -j$(nproc) && make install && cd / && \
+          wget -q https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.44/pcre2-10.44.tar.gz && \
+          tar xf pcre2-10.44.tar.gz && cd pcre2-10.44 && \
+          ./configure --enable-static --disable-shared --enable-pcre2-8 --prefix=/usr && \
+          make -j$(nproc) && make install && cd / && \
+          wget -q https://github.com/ivmai/bdwgc/releases/download/v8.2.6/gc-8.2.6.tar.gz && \
+          tar xf gc-8.2.6.tar.gz && cd gc-8.2.6 && \
+          ./configure --enable-static --disable-shared --prefix=/usr && \
+          make -j$(nproc) && make install && cd /
+      WORKDIR /app
+      COPY . .
+      RUN shards install && \
+          LDFLAGS="-Wl,-z,max-page-size=65536 -Wl,-z,common-page-size=65536" \
+          shards build --static && \
           zip -r rosegold-linux-arm64.zip bin/ README.md LICENSE
-    - uses: actions/upload-artifact@v4
-      with:
-        name: linux-arm64-bin
-        path: rosegold-linux-arm64.zip
+      FROM scratch
+      COPY --from=0 /app/rosegold-linux-arm64.zip /
+      EOF
+
+  - uses: actions/upload-artifact@v4
+    with:
+      name: linux-arm64-bin
+      path: output/rosegold-linux-arm64.zip
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
