@@ -64,10 +64,17 @@ jobs:
         githubToken: ${{ github.token }}
         install: |
           apt-get update
-          apt-get install -y curl git libssl-dev libxml2-dev libyaml-dev libgmp-dev libpcre3-dev
-          # Use the official automated install script
+          # Install basic tools first
+          apt-get install -y gnupg2 curl ca-certificates git --no-install-recommends
+          
+          # Manually import the missing key that the log complained about
+          apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 09617FD37CC06B54
+          
+          # Now run the official setup
           curl -sSL https://dist.crystal-lang.org/apt/setup.sh | bash
-          apt-get install -y crystal
+          
+          # Install Crystal and build dependencies
+          apt-get install -y crystal libssl-dev libxml2-dev libyaml-dev libgmp-dev libpcre3-dev
         run: |
           shards install
           shards build --release
