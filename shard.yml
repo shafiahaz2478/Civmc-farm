@@ -8,10 +8,6 @@ authors:
 targets:
   carrot-farm:
     main: src/carrot-farm.cr
-  attack:
-    main: src/attack.cr
-  afk:
-    main: src/afk.cr
 
 crystal: '>= 1.17.1'
 
