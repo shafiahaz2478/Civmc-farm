@@ -62,9 +62,15 @@ jobs:
         arch: aarch64
         distro: ubuntu22.04
         githubToken: ${{ github.token }}
+        # We must add the Crystal repo manually inside the ARM container
         install: |
           apt-get update
-          apt-get install -y crystal libssl-dev libxml2-dev libyaml-dev libgmp-dev git
+          apt-get install -y curl gnupg git libssl-dev libxml2-dev libyaml-dev libgmp-dev libpcre3-dev
+          # Add Crystal Repository
+          curl -fsSL https://packagecloud.io/crystal-lang/crystal/gpgkey | gpg --dearmor -o /etc/apt/trusted.gpg.d/crystal.gpg
+          echo "deb https://packagecloud.io/crystal-lang/crystal/ubuntu/ jammy main" > /etc/apt/sources.list.d/crystal.list
+          apt-get update
+          apt-get install -y crystal
         run: |
           shards install
           shards build --release
