@@ -56,25 +56,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Build ARM64 via Docker
+    - name: Build ARM64 via Alpine Docker
       uses: uraimo/run-on-arch-action@v2
       with:
         arch: aarch64
-        distro: ubuntu22.04
+        distro: alpine_latest
         githubToken: ${{ github.token }}
+        # Alpine doesn't need external repos for Crystal
         install: |
-          apt-get update
-          apt-get install -y curl gnupg2 ca-certificates git --no-install-recommends
-          
-          # Manually add the GPG key to the proper modern keyring location
-          curl -fsSL https://dist.crystal-lang.org/apt/setup.sh | gpg --dearmor -o /usr/share/keyrings/crystal-archive-keyring.gpg
-          
-          # Manually create the source list with the 'main' component specified
-          echo "deb [signed-by=/usr/share/keyrings/crystal-archive-keyring.gpg] https://dist.crystal-lang.org/apt crystal main" > /etc/apt/sources.list.d/crystal.list
-          
-          apt-get update
-          # Explicitly install crystal and all required build-time libraries
-          apt-get install -y crystal libssl-dev libxml2-dev libyaml-dev libgmp-dev libpcre3-dev libevent-dev
+          apk update
+          apk add crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev
         run: |
           shards install
           shards build --release
@@ -83,7 +74,7 @@ jobs:
       with:
         name: linux-arm64-bin
         path: rosegold-linux-arm64.tar.gz
-        
+
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
