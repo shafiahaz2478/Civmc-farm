@@ -62,8 +62,9 @@ jobs:
         arch: aarch64
         distro: alpine_latest
         githubToken: ${{ github.token }}
-        # Alpine doesn't need external repos for Crystal
         install: |
+          # Add the Edge community repo to get the latest Crystal version
+          echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
           apk update
           apk add crystal shards git build-base openssl-dev zlib-dev yaml-dev gmp-dev pcre-dev libevent-dev
         run: |
@@ -74,7 +75,6 @@ jobs:
       with:
         name: linux-arm64-bin
         path: rosegold-linux-arm64.tar.gz
-
   create-release:
     needs: [build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
