@@ -7,10 +7,7 @@ class BonemealMonitorBot
 
   # The four chest positions (vertical stack, same X/Z, Y 35–38)
   CHEST_POSITIONS = [
-    Rosegold::Vec3i.new(6240, 35, -2802),
-    Rosegold::Vec3i.new(6240, 36, -2802),
-    Rosegold::Vec3i.new(6240, 37, -2802),
-    Rosegold::Vec3i.new(6240, 38, -2802),
+    Rosegold::Vec3i.new(6243, 34, -2803),
   ]
 
   @bot : Rosegold::Bot
