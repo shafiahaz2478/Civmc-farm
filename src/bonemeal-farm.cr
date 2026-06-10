@@ -2,8 +2,9 @@ require "rosegold"
 
 class BonemealMonitorBot
   # --- CONFIGURATION ---
-  CHANNEL   = "shafiahaz2478"
-  KILL_WORD = "stop"
+  CHANNEL     = "shafiahaz2478"
+  KILL_WORD   = "stop"
+  STATUS_WORD = "status"
 
   # The four chest positions (vertical stack, same X/Z, Y 35–38)
   CHEST_POSITIONS = [
@@ -14,6 +15,7 @@ class BonemealMonitorBot
 
   def initialize(@bot : Rosegold::Bot)
     setup_killswitch
+    setup_status_listener
   end
 
   def setup_killswitch
@@ -32,6 +34,24 @@ class BonemealMonitorBot
         puts "\n[🚨] Kill switch activated via standard player chat! Logging out..."
         @bot.chat("/logout")
         exit(0)
+      end
+    end
+  end
+
+  def setup_status_listener
+    @bot.on Rosegold::Clientbound::SystemChatMessage do |event|
+      message = event.message.to_s.downcase
+
+      if message.includes?("[#{CHANNEL.downcase}]") && message.ends_with?(": #{STATUS_WORD.downcase}")
+        puts "\n[📊] Status request received via group chat! Scanning chests..."
+        check_chests_and_report
+      end
+    end
+
+    @bot.on Rosegold::Clientbound::PlayerChatMessage do |event|
+      if event.message.to_s.downcase == STATUS_WORD.downcase
+        puts "\n[📊] Status request received via player chat! Scanning chests..."
+        check_chests_and_report
       end
     end
   end
